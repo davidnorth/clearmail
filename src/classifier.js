@@ -57,6 +57,8 @@ function buildSystemPrompt(config) {
 2. Which single category it belongs to from the list provided
 3. A one-sentence explanation of your decision
 
+CRITICAL: The "Keep if" rules always take precedence over "Reject if" rules. If an email matches ANY "Keep if" rule, it MUST be kept (meets_criteria: true), even if it also matches a "Reject if" rule. Only reject an email if it matches NO "Keep if" rules and matches a "Reject if" rule.
+
 Respond ONLY with valid JSON in this exact format:
 {"meets_criteria": true, "category": "CategoryName", "explanation": "One sentence explanation"}
 `;
