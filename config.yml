@@ -1,73 +1,119 @@
-settings:
-  myName: Andy Walters
-  myEmail: andywalters@gmail.com
+# Clearmail v2 Configuration
+# Rules are written in plain English.
 
-  # if set to false, OpenAI is used
-  useLocalLLM: true
+# Global rules — applied before per-category rules
+# "keepIf" describes what should stay in your inbox
+# "rejectIf" describes what should be moved out
+globalRules:
+  keepIf: |
+    * Any vinted updates
+    * Steam wishlist and sales notifications, or "now avaialble on steam" game launch announcements
+    * anything about car or home insurance (quotes, renewals, policy documents, claims)
+    * security alerts, one-time passwords, and login verification codes
+    * direct personal replies to emails I've sent
+    * transactional emails: receipts, shipping confirmations, invoices
+    * account-related notices requiring action (password changes, billing issues)
+    * calendar invitations and event reminders for events I registered for
+  rejectIf: |
+    * Anything political, campaign emails. 
+    * mass marketing, promotional offers, discounts, and sale announcements
+    * newsletters and weekly/monthly digests
+    * unsolicited cold outreach and spam
+    * social media notification digests
 
-  # maximum number of characters to feed the AI of an email body. too many characters can start to confuse it
-  maxEmailChars: 750
+# Categories define how to label classified emails
+# The LLM assigns exactly one category per email based on these rules
+categories:
+  - label: Financial
+    keepIf: |
+      * bank statements and transaction alerts
+      * Anything eToro
+      * Anything from my accountant
+      * investment reports and portfolio updates
+      * tax documents and receipts
+      * payment confirmations from financial services
+    rejectIf: |
+      * promotional offers and marketing from financial institutions
+      * credit card and loan offers
 
-  # max number of emails to process in a single go, probably wise to keep this under 100
-  maxEmailsToProcessAtOnce: 100
+  - label: Job Opportunities
+    keepIf: |
+      * direct outreach from recruiters or hiring managers
+      * personalized job offers and interview requests
+      * messages from LinkedIn specifically to me
+    rejectIf: |
+      * job listing digests and weekly roundups
+      * mass recruitment emails and job alerts
 
-  # process any new unread emails every x seconds
-  refreshInterval: 120
+  - label: News
+    keepIf: |
+      * breaking news alerts I've explicitly subscribed to
+      * personalized news digests from paid subscriptions
+    rejectIf: |
+      * generic news roundups and headlines from media outlets
+      * blog post notifications
 
-  # very simple mechanism to store the last time an email was fetched
-  timestampFilePath: lastTimestamp.txt
+  - label: Social Updates
+    keepIf: |
+      * messages about opportunities to pay in bands and that kind of thing
+    rejectIf: |
+      * General facebook notifications, friend suggestions etc. 
+      * social media digest emails and suggested content
+      * trending topic summaries
 
-  # sortIntoCategoryFolders can be either true or false
-  # if true, emails will be sorted into the folders/labels defined in the categoryFolderNames below
-  # if false, all rejected emails will be moved into rejectedFolderName
-  # NOTE: you must manually create whichever folders are referenced here in gmail as "labels" that match exactly
-  sortIntoCategoryFolders: true
-  rejectedFolderName: AI Rejects
+  - label: Marketing
+    keepIf: |
+      * Notifications about AI and SaaS products i use. Sanity. Anthropic, Gemini, OpenAI, etc.
+      * Anything Github
+      * Steam wishlist or game launch announcements
+      * eBay saved search alerts
+      * product updates for services I actively use
+    rejectIf: |
+      * cold marketing and promotional emails
+      * affiliate deals and sponsored content
 
-  # if true, mark all rejected emails as unread
-  markAllRejectedEmailsRead: true
+# Deterministic pre-filters — bypass the LLM entirely
+# Whitelist takes priority over blacklist (if an email matches both)
+# Supports exact addresses and domain wildcards (*@example.com)
+whitelist:
+  - "judith.north@gmail.com"
+  - "*@medicodigital.co.uk"
+  - "johunter@gmail.com"
+  - "pricealert@keepa.com"
+  - "*@vclvintners.london"
 
-  # if true, star all kept emails
-  starAllKeptEmails: true
+blacklist:
+  - "no-reply@spammy-newsletters.com"
+  - "*@unwanted-domain.com"
+  - "*@mail.promotions.example.net"
 
-  # choose either 'server' or 'script'.  'script' is the recommended.
-  runAsServerOrScript: script
-  # port number
-  portNumber: 3003
+# LLM provider settings (OpenAI-compatible)
+# Values here override .env defaults — leave commented to use .env values
+provider:
+  # baseURL: https://api.deepseek.com/v1
+  # model: deepseek-chat
+  # apiKey: ""       # Override .env value
+  maxTokens: 500     # Max body characters sent to the LLM
 
-localLLM:
-  # this is the default for any loaded model with LMStudio
-  postURL: http://localhost:1234/v1/chat/completions
+# Behavior settings
+behavior:
+  pollIntervalSeconds: 120
+  maxEmailChars: 750        # Max characters of email body sent to LLM
+  maxEmailsPerBatch: 50     # Max emails to process in one polling cycle
+  dryRun: false             # Log actions without modifying emails
+  markRejectedRead: true    # Mark rejected emails as read
+  starKept: true            # Star emails that are kept in inbox
+  rejectedLabel: AI Rejects # Label/folder for rejected emails
+  unknownLabel: CATEGORY_UNKNOWN  # Fallback label when LLM can't classify
+  deepBreathSuffix: false   # Enable the silly but effective prompt suffix
 
-openAI:
-  # recommended gpt-3.5-turbo-0125 as cheap, fast, and relatively accurate
-  model: gpt-4-0125-preview
+# Logging
+logging:
+  level: info       # debug, info, warn, error
+  format: plain     # plain or json
 
-# define as many folder names as you'd like as long as it's less than what the ai will choke on
-# Note: "Social" is not allowed in gmail as it's reserved, there may be others.
-# Spaces in folder names are fine as long as they case sensitive match your gmail label.
-categoryFolderNames:
-  - News
-  - Social Updates
-  - Blog
-  - Financial
-  - Marketing
-  - Other
-
-# the simpler the rules, the better
-rules:
-  keep: |
-    * security alert or one time password or login
-    * personal message 
-    * personal financial information
-    * any message from someone on LinkedIn or Sales Navigator sent to me personally (reject blogs and newsletters)
-    * someone contacting me to solicit my services or offer me a job
-    * a reply to a message Andy sent or likely sent
-    * transactional email, receipt, or shipping notification
-    * action required to ensure my products and services work properly
-    * reminder about an upcoming event I already booked
-  reject: |
-    * marketing or promotional or discounts or rewards
-    * weekly or daily snapshots
-    * job listings
-    * blogs and news / newsletters
+# Debug HTTP endpoint (for testing rule changes)
+server:
+  enabled: false
+  port: 3003
+  apiKey: ""        # Leave empty to disable the endpoint entirely
