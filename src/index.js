@@ -4,14 +4,9 @@ import { loadConfig } from './config.js';
 import { validateAuth, fetchUnread, addLabel, removeInboxLabel, markRead, starMessage, ensureLabelsExist, clearLabelCache } from './gmail.js';
 import { prefilter } from './prefilter.js';
 import { classify } from './classifier.js';
-import { createServer } from './server.js';
-import { sleep } from './utils.js';
 import { logger } from './logger.js';
 
 const TIMESTAMP_FILE = './lastTimestamp.txt';
-
-let running = true;
-let shutdownResolve = null;
 
 export async function main() {
   // Load config
@@ -43,32 +38,15 @@ export async function main() {
     logger.info(`[DRY RUN] Would ensure ${labelNames.size} labels exist: ${[...labelNames].join(', ')}`);
   }
 
-  // Start optional debug HTTP server
-  if (config.server.enabled && config.server.apiKey) {
-    const app = createServer(config);
-    app.listen(config.server.port, () => {
-      logger.info(`Debug server running on port ${config.server.port}`);
-    });
+  // Single run — process one cycle and exit. Scheduling is handled
+  // externally (e.g. a systemd timer).
+  try {
+    await processCycle(config);
+  } catch (err) {
+    logger.error(`Polling cycle error: ${err.message}`);
   }
 
-  // Graceful shutdown
-  process.on('SIGTERM', shutdown);
-  process.on('SIGINT', shutdown);
-
-  // Main polling loop
-  while (running) {
-    try {
-      await processCycle(config);
-    } catch (err) {
-      logger.error(`Polling cycle error: ${err.message}`);
-    }
-
-    if (running) {
-      await interruptibleSleep(config.behavior.pollIntervalSeconds * 1000);
-    }
-  }
-
-  logger.info('Clearmail shutting down');
+  logger.info('Clearmail run complete');
 }
 
 async function processCycle(config) {
@@ -225,17 +203,6 @@ async function saveLastTimestamp(date) {
   await fs.writeFile(TIMESTAMP_FILE, date.toISOString(), 'utf8');
 }
 
-function shutdown() {
-  running = false;
-  if (shutdownResolve) shutdownResolve();
-}
-
-function interruptibleSleep(ms) {
-  return Promise.race([
-    sleep(ms),
-    new Promise(resolve => { shutdownResolve = resolve; }),
-  ]);
-}
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/^\.\//, ''))) {
   main().catch(err => {
     logger.error(`Fatal: ${err.message}`);
